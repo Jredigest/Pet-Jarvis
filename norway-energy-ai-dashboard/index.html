@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Norway — Energy Trade &amp; AI Data Centre Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page-plane);
+    color: var(--text-primary);
+  }
+  .viz-root {
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-export:  #2a78d6;
+    --series-import:  #eb6834;
+    --interconnector: #1baf7a;
+    --status-operational: #184f95;
+    --status-development: #3987e5;
+    --status-planning:    #86b6ef;
+    --land-fill:      #eceae3;
+    --land-fill-hover:#e1ded3;
+    --land-stroke:    #c3c2b7;
+    --tooltip-bg:     #0b0b0b;
+    --tooltip-fg:     #ffffff;
+    background: var(--page-plane);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-export:  #3987e5;
+      --series-import:  #d95926;
+      --interconnector: #199e70;
+      --status-operational: #86b6ef;
+      --status-development: #3987e5;
+      --status-planning:    #184f95;
+      --land-fill:      #242320;
+      --land-fill-hover:#2c2b27;
+      --land-stroke:    #46443e;
+      --tooltip-bg:     #ffffff;
+      --tooltip-fg:     #0b0b0b;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-export:  #3987e5;
+    --series-import:  #d95926;
+    --interconnector: #199e70;
+    --status-operational: #86b6ef;
+    --status-development: #3987e5;
+    --status-planning:    #184f95;
+    --land-fill:      #242320;
+    --land-fill-hover:#2c2b27;
+    --land-stroke:    #46443e;
+    --tooltip-bg:     #ffffff;
+    --tooltip-fg:     #0b0b0b;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 60px; }
+  header.page-head h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  header.page-head p { margin: 0; color: var(--text-secondary); font-size: 0.92rem; max-width: 70ch; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin: 22px 0;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stat-tile .label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
+  .stat-tile .value { font-size: 1.4rem; font-weight: 600; margin-top: 2px; }
+  .stat-tile .sub { font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px; }
+
+  .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    user-select: none;
+  }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; display:inline-block; }
+  .chip[data-active="true"] { color: var(--text-primary); border-color: var(--text-primary); font-weight: 600; }
+  .chip[data-active="false"] { opacity: .5; }
+  .filter-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+
+  .grid-main {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .panel h2 { font-size: 0.95rem; margin: 0 0 10px; }
+  .panel h2 .n { color: var(--text-muted); font-weight: 400; }
+
+  .map-svg { width: 100%; height: auto; display: block; }
+  .land { fill: var(--land-fill); stroke: var(--land-stroke); stroke-width: 1.2; transition: fill .15s; }
+  .city-dot { fill: var(--text-muted); }
+  .city-label { fill: var(--text-muted); font-size: 11px; }
+  .marker { cursor: pointer; stroke: var(--surface-1); stroke-width: 1.5; }
+  .marker.energy { fill: var(--interconnector); }
+  .marker-label { font-size: 10.5px; fill: var(--text-secondary); pointer-events: none; }
+  .hidden-layer { display: none; }
+
+  .legend { display:flex; flex-direction:column; gap:6px; margin-top:12px; font-size:0.8rem; color: var(--text-secondary); }
+  .legend-item { display:flex; align-items:center; gap:8px; }
+  .legend-item .swatch { width:11px; height:11px; border-radius:50%; flex:none; }
+  .legend-item .swatch.diamond { border-radius:2px; transform:rotate(45deg); }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--tooltip-bg);
+    color: var(--tooltip-fg);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    max-width: 260px;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translate(-9999px,-9999px);
+    transition: opacity .08s;
+    z-index: 50;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip b { display:block; margin-bottom:2px; }
+
+  .site-list { display:flex; flex-direction:column; gap:8px; max-height: 620px; overflow-y:auto; }
+  .site-card { border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 0.82rem; }
+  .site-card .row1 { display:flex; align-items:center; gap:7px; font-weight:600; }
+  .site-card .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .site-card .loc { color: var(--text-secondary); margin: 2px 0 4px; }
+  .site-card .detail { color: var(--text-secondary); font-size: 0.78rem; }
+  .site-card[data-dim="true"] { opacity: .35; }
+
+  .lower-grid { display:grid; grid-template-columns: 0.9fr 1.5fr; gap:18px; margin-top:18px; }
+
+  .barchart { display:flex; align-items:flex-end; gap:26px; height:190px; padding-top:10px; }
+  .bar-col { display:flex; flex-direction:column; align-items:center; gap:6px; width:90px; }
+  .bar-track { width:100%; height:150px; display:flex; align-items:flex-end; background: linear-gradient(transparent, transparent); border-bottom:1px solid var(--baseline); position:relative; }
+  .bar { width: 56px; margin: 0 auto; border-radius: 4px 4px 0 0; position:relative; transition: filter .1s; }
+  .bar:hover { filter: brightness(1.08); }
+  .bar-value { position:absolute; top:-20px; left:0; right:0; text-align:center; font-weight:600; font-size:0.85rem; }
+  .bar-name { font-size:0.78rem; color: var(--text-secondary); }
+
+  table.energy-table { width:100%; border-collapse: collapse; font-size: 0.82rem; }
+  table.energy-table th { text-align:left; font-weight:600; color: var(--text-muted); font-size:0.72rem; text-transform:uppercase; letter-spacing:.02em; padding: 6px 8px; border-bottom: 1px solid var(--gridline); }
+  table.energy-table td { padding: 8px 8px; border-bottom: 1px solid var(--gridline); vertical-align:top; }
+  table.energy-table tr:last-child td { border-bottom: none; }
+  .cap { font-variant-numeric: tabular-nums; white-space:nowrap; }
+
+  footer.sources { margin-top: 26px; font-size: 0.74rem; color: var(--text-muted); line-height:1.6; }
+  footer.sources a { color: var(--text-muted); }
+
+  @media (max-width: 880px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .grid-main { grid-template-columns: 1fr; }
+    .lower-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="page-head">
+    <h1>Norway — Energy Trade &amp; AI Data Centre Map</h1>
+    <p>Cross-border electricity interconnectors and the status of major AI / hyperscale data centre projects across Norway. Hover any marker for details; use the filters below to isolate a layer.</p>
+  </header>
+
+  <div class="stat-row" id="statRow"></div>
+
+  <div class="filter-row" id="filterRow"></div>
+
+  <div class="grid-main">
+    <div class="panel">
+      <h2>Map <span class="n">— interconnectors &amp; data centres</span></h2>
+      <svg class="map-svg" viewBox="0 0 620 900" id="mapSvg" xmlns="http://www.w3.org/2000/svg">
+        <path class="land" d="M 479.9,20.0 L 475.7,23.8 L 471.7,22.3 L 469.9,26.6 L 470.2,29.3 L 472.1,30.5 L 469.8,35.0 L 465.8,31.3 L 462.1,33.1 L 460.8,30.7 L 454.9,28.7 L 454.5,32.9 L 452.4,33.6 L 455.4,36.4 L 448.4,35.0 L 444.8,38.6 L 444.5,40.0 L 453.7,45.8 L 451.1,44.9 L 447.5,49.3 L 443.9,44.7 L 436.7,42.5 L 428.4,47.3 L 433.6,41.7 L 428.9,35.6 L 426.5,38.7 L 420.9,37.9 L 421.7,40.3 L 420.6,41.2 L 414.3,42.3 L 412.6,44.6 L 397.5,47.2 L 399.3,51.8 L 403.6,52.9 L 401.1,56.5 L 402.0,57.6 L 418.4,55.9 L 416.8,58.9 L 407.4,62.7 L 406.2,65.9 L 396.6,63.4 L 393.8,60.4 L 388.9,63.1 L 389.2,61.3 L 387.7,60.4 L 386.4,61.3 L 385.0,67.2 L 381.5,69.2 L 384.3,76.6 L 381.5,79.0 L 377.9,76.6 L 374.5,69.9 L 368.9,68.9 L 365.1,72.0 L 363.7,76.6 L 369.5,80.3 L 369.3,85.2 L 366.0,86.3 L 363.6,82.0 L 361.5,82.0 L 352.8,91.4 L 351.6,91.2 L 351.5,87.7 L 356.6,81.2 L 355.3,80.1 L 359.7,76.0 L 357.7,74.4 L 358.0,72.1 L 348.3,65.9 L 344.2,68.2 L 347.9,72.8 L 348.9,74.9 L 348.1,75.1 L 344.5,72.3 L 340.9,73.2 L 341.0,69.0 L 338.8,66.1 L 335.3,70.8 L 331.4,69.9 L 327.7,73.7 L 327.5,76.5 L 323.6,78.2 L 320.7,90.9 L 318.4,92.9 L 313.9,92.2 L 313.2,94.6 L 314.8,95.4 L 312.8,98.1 L 307.2,102.2 L 301.4,101.1 L 300.0,104.3 L 296.8,103.9 L 297.3,106.6 L 295.3,106.2 L 294.2,110.1 L 287.8,112.9 L 289.1,118.5 L 285.1,127.5 L 285.9,130.1 L 296.1,131.9 L 299.3,133.8 L 298.1,135.0 L 292.8,135.7 L 285.5,143.9 L 283.8,142.5 L 285.2,141.3 L 286.8,134.4 L 283.4,133.4 L 281.9,128.5 L 280.5,128.0 L 273.8,132.2 L 274.0,136.0 L 269.3,137.4 L 269.6,135.4 L 267.7,133.2 L 264.8,132.5 L 267.2,131.4 L 272.5,122.8 L 273.7,118.0 L 272.9,114.9 L 271.0,115.2 L 265.1,118.6 L 264.4,123.3 L 259.1,126.8 L 256.1,132.8 L 248.2,130.6 L 242.3,138.2 L 235.4,142.2 L 231.7,153.1 L 237.9,153.9 L 241.6,158.3 L 241.1,159.4 L 233.8,162.3 L 231.9,165.2 L 219.6,165.6 L 213.1,170.6 L 212.9,173.2 L 210.5,173.5 L 209.8,176.4 L 204.8,176.7 L 205.0,178.5 L 198.5,190.6 L 199.3,192.1 L 210.8,182.8 L 229.0,173.4 L 228.9,175.4 L 230.2,175.8 L 239.7,171.9 L 238.7,173.3 L 240.2,175.6 L 246.7,170.7 L 248.1,172.2 L 254.2,165.9 L 260.3,169.0 L 263.0,168.9 L 263.6,165.4 L 265.6,164.3 L 271.9,166.9 L 264.7,172.7 L 256.0,174.8 L 237.7,190.2 L 237.2,196.8 L 240.9,198.2 L 239.2,198.8 L 240.3,199.9 L 247.6,201.8 L 239.3,208.9 L 235.1,216.4 L 231.7,217.7 L 231.3,220.6 L 235.4,221.3 L 216.3,230.1 L 216.7,232.3 L 222.3,231.0 L 222.6,233.0 L 212.6,236.0 L 211.1,237.8 L 212.8,240.1 L 206.1,241.9 L 200.5,251.3 L 194.1,251.7 L 193.3,256.9 L 196.3,258.8 L 197.9,264.0 L 192.7,262.3 L 186.6,264.6 L 192.5,270.4 L 197.5,270.3 L 187.9,274.7 L 185.2,278.5 L 184.7,286.6 L 176.7,290.3 L 180.8,292.1 L 180.3,296.8 L 174.8,299.3 L 175.7,302.5 L 174.4,305.6 L 174.9,306.7 L 177.1,305.2 L 180.1,306.9 L 182.8,303.5 L 185.9,304.6 L 186.5,301.5 L 185.2,296.5 L 188.9,298.7 L 186.5,306.8 L 183.4,307.4 L 179.7,316.2 L 183.0,318.6 L 179.8,326.4 L 171.1,329.8 L 169.2,333.3 L 172.3,333.7 L 167.9,336.7 L 165.7,337.2 L 164.4,333.4 L 160.2,332.8 L 151.0,337.8 L 149.9,343.6 L 150.4,347.7 L 155.5,346.6 L 154.9,349.1 L 161.9,346.3 L 161.5,347.9 L 164.2,350.7 L 153.6,356.7 L 152.0,358.3 L 152.3,361.3 L 144.2,368.5 L 142.5,371.1 L 142.6,373.7 L 138.1,376.4 L 134.7,382.9 L 134.8,387.9 L 132.7,388.1 L 129.3,394.9 L 127.5,403.3 L 124.4,401.6 L 123.3,406.0 L 121.8,406.4 L 120.7,405.3 L 121.4,402.9 L 120.7,401.6 L 113.6,401.6 L 115.7,398.8 L 115.2,395.4 L 110.6,391.7 L 105.6,391.6 L 103.5,393.4 L 106.3,396.8 L 106.0,399.3 L 100.1,401.6 L 104.1,404.4 L 102.4,405.0 L 100.8,407.8 L 101.7,408.7 L 99.0,412.3 L 93.5,409.9 L 93.2,412.2 L 89.5,415.7 L 88.9,420.5 L 90.0,424.0 L 94.3,424.9 L 71.2,438.5 L 68.7,441.4 L 69.0,443.4 L 62.8,444.9 L 58.8,449.2 L 60.0,450.0 L 54.9,452.1 L 53.7,454.8 L 54.4,456.7 L 51.7,457.9 L 51.6,461.7 L 49.8,462.8 L 51.8,464.2 L 52.4,467.4 L 50.8,465.4 L 46.1,468.2 L 42.2,466.0 L 43.0,468.1 L 40.2,468.6 L 39.8,470.5 L 41.6,472.2 L 36.7,475.5 L 38.7,479.1 L 38.0,480.9 L 34.6,476.4 L 31.5,477.2 L 31.0,478.4 L 32.4,480.3 L 31.9,482.1 L 34.3,482.3 L 35.5,485.4 L 29.1,485.3 L 30.4,488.8 L 25.7,494.0 L 27.1,496.2 L 25.0,499.3 L 25.6,501.2 L 29.2,499.2 L 28.3,500.4 L 28.8,503.0 L 25.9,502.1 L 24.5,504.8 L 25.0,507.6 L 23.5,509.6 L 29.5,509.2 L 32.6,510.6 L 34.2,514.2 L 27.3,516.2 L 25.7,521.4 L 20.0,523.1 L 26.4,525.5 L 27.6,523.3 L 28.6,526.0 L 23.3,526.4 L 26.1,529.4 L 22.6,531.1 L 21.5,536.4 L 24.3,540.6 L 23.3,544.1 L 25.1,545.6 L 24.1,547.0 L 27.8,556.3 L 28.1,559.1 L 27.2,559.3 L 24.4,552.1 L 22.8,553.4 L 25.7,564.0 L 27.5,565.1 L 26.4,566.5 L 27.6,569.3 L 26.9,571.6 L 27.6,575.2 L 29.4,578.4 L 29.5,582.1 L 31.3,584.1 L 29.4,587.7 L 33.6,591.4 L 30.1,594.7 L 31.9,602.4 L 31.4,607.9 L 32.7,612.1 L 31.2,612.9 L 34.4,616.1 L 34.0,618.8 L 30.8,616.5 L 33.4,622.5 L 33.0,631.7 L 39.5,631.7 L 42.6,625.7 L 51.8,623.3 L 46.7,624.8 L 46.8,629.5 L 44.1,631.5 L 46.0,632.9 L 41.5,633.5 L 43.5,636.3 L 41.9,638.1 L 41.7,644.0 L 42.6,645.5 L 40.3,652.1 L 44.0,662.3 L 46.3,663.6 L 48.8,669.0 L 64.8,680.7 L 63.3,684.3 L 65.2,686.9 L 72.0,688.4 L 74.4,691.5 L 76.1,689.4 L 78.1,691.5 L 78.3,689.3 L 85.1,692.7 L 95.9,687.1 L 95.5,683.8 L 96.9,686.4 L 100.5,684.5 L 106.4,678.0 L 121.8,654.5 L 131.6,644.4 L 132.6,639.9 L 136.5,642.3 L 145.0,637.6 L 146.7,634.5 L 148.6,637.2 L 149.5,630.3 L 151.8,630.8 L 149.6,626.4 L 150.2,623.4 L 148.9,620.7 L 149.5,617.1 L 147.0,616.6 L 144.4,611.3 L 148.3,613.3 L 152.6,610.4 L 153.2,613.4 L 151.1,617.5 L 152.8,617.8 L 153.6,624.3 L 155.0,624.1 L 154.6,628.8 L 156.2,631.8 L 157.8,630.7 L 158.1,632.5 L 156.5,635.1 L 160.4,639.7 L 162.4,639.9 L 163.8,635.4 L 167.9,633.7 L 170.3,639.6 L 170.4,644.9 L 174.7,643.4 L 178.3,627.4 L 175.6,608.3 L 180.7,604.2 L 180.0,598.3 L 178.8,596.5 L 181.7,593.7 L 185.6,594.3 L 189.7,590.4 L 192.6,585.0 L 194.0,578.9 L 193.1,572.6 L 195.4,568.3 L 195.3,562.1 L 190.7,551.5 L 189.5,543.5 L 187.0,537.1 L 197.1,535.1 L 197.6,530.4 L 199.8,527.1 L 201.2,519.8 L 194.7,509.1 L 191.3,509.4 L 185.3,501.3 L 188.7,473.9 L 183.2,456.1 L 185.2,449.2 L 183.7,441.4 L 187.0,436.6 L 181.7,422.7 L 186.5,412.9 L 185.5,406.4 L 197.0,387.0 L 202.2,382.7 L 208.6,380.8 L 225.5,385.0 L 229.1,376.3 L 228.4,362.5 L 218.3,356.3 L 232.8,329.0 L 234.0,322.5 L 236.8,319.0 L 237.4,299.8 L 239.3,293.7 L 237.1,277.4 L 248.2,276.3 L 258.1,269.8 L 255.8,259.7 L 270.1,237.8 L 277.8,231.1 L 278.2,223.0 L 271.2,211.3 L 272.6,207.0 L 278.3,206.4 L 281.5,200.5 L 285.5,186.9 L 297.3,176.7 L 310.8,184.2 L 316.2,172.8 L 315.0,162.2 L 315.7,155.4 L 321.7,153.2 L 326.5,156.9 L 334.4,156.4 L 354.6,164.5 L 361.3,157.7 L 355.1,154.4 L 361.0,148.8 L 363.7,142.0 L 363.3,135.8 L 357.8,129.6 L 368.5,128.8 L 372.1,125.8 L 379.6,130.0 L 380.7,126.5 L 377.9,121.7 L 384.3,116.1 L 391.9,117.9 L 403.9,134.2 L 407.4,140.9 L 408.2,146.2 L 411.7,144.9 L 422.9,147.7 L 425.6,150.8 L 436.6,146.9 L 438.7,140.9 L 440.8,140.1 L 447.0,142.7 L 449.5,146.1 L 457.3,148.1 L 463.3,154.5 L 463.8,151.8 L 468.0,150.0 L 468.9,141.9 L 476.0,136.8 L 479.0,137.3 L 482.2,131.4 L 480.5,121.5 L 481.5,115.8 L 483.7,111.7 L 483.1,110.5 L 484.7,105.2 L 483.6,103.9 L 486.7,101.1 L 485.1,98.0 L 496.0,87.9 L 497.3,84.2 L 505.8,83.2 L 511.4,85.2 L 522.3,77.3 L 529.9,76.4 L 530.4,80.4 L 538.3,87.2 L 538.0,88.8 L 539.6,90.3 L 555.5,96.6 L 559.9,107.6 L 548.9,120.5 L 548.3,126.2 L 553.6,131.2 L 557.8,126.3 L 559.5,119.8 L 558.8,116.9 L 564.8,115.7 L 576.7,108.3 L 578.2,102.2 L 576.4,98.4 L 579.1,98.6 L 585.5,104.4 L 594.7,103.5 L 595.0,97.4 L 592.2,91.6 L 583.6,89.7 L 581.1,86.9 L 566.8,85.0 L 568.5,83.2 L 567.7,81.7 L 551.5,77.1 L 549.6,74.4 L 569.1,78.6 L 581.1,77.6 L 580.9,76.0 L 583.4,74.4 L 583.1,72.5 L 586.8,69.6 L 598.1,67.2 L 598.1,63.9 L 600.0,61.1 L 595.8,58.3 L 591.1,58.6 L 588.7,55.0 L 588.6,52.6 L 580.7,52.9 L 582.7,50.3 L 579.5,46.3 L 573.2,44.6 L 570.7,47.5 L 570.4,43.8 L 560.8,43.2 L 561.9,41.8 L 559.4,38.6 L 552.9,35.3 L 547.6,36.0 L 542.4,41.3 L 537.9,53.8 L 532.1,54.3 L 538.5,47.6 L 538.1,44.6 L 534.6,43.9 L 535.1,42.6 L 541.9,36.7 L 543.2,33.4 L 543.0,30.8 L 537.9,28.9 L 537.1,25.6 L 535.4,24.9 L 528.3,26.2 L 522.1,23.0 L 519.5,25.0 L 518.6,28.4 L 513.5,27.9 L 510.5,34.1 L 517.0,37.7 L 512.3,40.2 L 506.9,53.9 L 502.8,55.1 L 502.0,58.7 L 500.3,56.3 L 501.9,45.5 L 504.5,37.9 L 502.8,31.5 L 497.8,32.9 L 487.6,44.2 L 486.1,49.4 L 474.2,62.4 L 470.1,63.6 L 473.6,60.6 L 472.1,58.1 L 474.0,55.0 L 471.8,55.0 L 471.3,52.8 L 478.3,45.4 L 485.0,42.3 L 481.6,42.3 L 486.2,37.1 L 483.1,34.2 L 493.1,28.7 L 492.2,26.6 L 486.7,26.8 L 488.5,25.7 L 487.9,23.0 L 479.9,20.0 Z"></path>
+        <g id="cityLayer"></g>
+        <g id="energyLayer"></g>
+        <g id="aiLayer"></g>
+      </svg>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch diamond" style="background:var(--interconnector)"></span> Cross-border electricity interconnector</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--status-operational)"></span> AI / data centre — operational</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--status-development)"></span> AI / data centre — under development</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--status-planning)"></span> AI / data centre — start / planning phase</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>AI &amp; data centre projects <span class="n" id="aiCount"></span></h2>
+      <div class="site-list" id="aiList"></div>
+    </div>
+  </div>
+
+  <div class="lower-grid">
+    <div class="panel">
+      <h2>Electricity trade, 2023</h2>
+      <div class="barchart" id="barChart"></div>
+      <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:6px;">
+        Norway produced an estimated 157 TWh in 2024 (~88% hydropower) and holds roughly
+        9,000 MW of cross-border interconnector capacity — acting as a net exporter in
+        wet years and importing to cover dry-year shortfalls.
+      </p>
+    </div>
+    <div class="panel">
+      <h2>Interconnectors <span class="n">— capacity &amp; connected country</span></h2>
+      <table class="energy-table">
+        <thead><tr><th>Link</th><th>To</th><th>Capacity</th><th>Note</th></tr></thead>
+        <tbody id="energyTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer class="sources">
+    Figures and project statuses are approximate, gathered from public reporting (Statnett, NVE/SSB, IEA,
+    National Grid, Nscale, Green Mountain, Data Center Dynamics and others) as of August 2026 and may
+    change as projects progress. Marker positions for interconnectors and data centres are approximate
+    site locations, not exact coordinates. Country outline simplified from public boundary data.
+  </footer>
+
+</div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const DATA = {"ai": [{"id": "stargate_narvik", "name": "Stargate Norway", "org": "Nscale · Aker · OpenAI", "loc": "Kvandal, near Narvik — Nordland", "status": "development", "detail": "AI Gigafactory: up to 520 MW, targeting 100,000 NVIDIA GPUs by end of 2026. Runs on 100% hydropower with closed-loop liquid cooling.", "x": 297.7, "y": 164.9}, {"id": "nscale_glomfjord", "name": "Nscale Glomfjord", "org": "Nscale", "loc": "Glomfjord — Nordland", "status": "operational", "detail": "Nscale's first Norwegian facility, hydropower-fed; the technical foundation for the Narvik build-out.", "x": 225.3, "y": 243.0}, {"id": "green_mountain_stavanger", "name": "Green Mountain DC1-Stavanger", "org": "Green Mountain", "loc": "Rennesøy — Rogaland", "status": "operational", "detail": "Norway's largest colocation operator; a former NATO ammunition depot converted into a data centre.", "x": 45.6, "y": 631.8}, {"id": "green_mountain_kalberg", "name": "Green Mountain Kalberg Campus", "org": "Green Mountain", "loc": "Kalberg, ~20 km from Stavanger — Rogaland", "status": "planning", "detail": "NOK 50bn (~$4.5bn) campus for a large international client. Building application filed; full build-out targeted for 2027.", "x": 48.2, "y": 648.1}, {"id": "lefdal_maloy", "name": "Lefdal Mine Datacenter", "org": "Lefdal Mine", "loc": "Måløy — Vestland", "status": "operational", "detail": "A former olivine mine converted into a data centre; seawater cooling gives it zero water-usage effectiveness.", "x": 32.1, "y": 490.2}, {"id": "bulk_vennesla", "name": "One Circle Campus", "org": "Bulk Infrastructure", "loc": "Vennesla, near Kristiansand — Agder", "status": "operational", "detail": "N01/N02 halls operating today, with further campus expansion under development.", "x": 94.4, "y": 676.0}, {"id": "stack_fetsund", "name": "STACK Infrastructure (ex-DigiPlex)", "org": "STACK Infrastructure", "loc": "Fetsund, near Oslo", "status": "operational", "detail": "Major colocation campus serving the Oslo metro region.", "x": 164.1, "y": 592.2}, {"id": "google_skien", "name": "Google Data Center", "org": "Google", "loc": "Skien — Telemark", "status": "development", "detail": "~240 MW hyperscale campus reported under construction.", "x": 129.9, "y": 628.8}], "energy": [{"id": "skagerrak_kristiansand", "name": "Skagerrak 1–4", "to": "Denmark", "cap": "1,680 MW (4 HVDC cables)", "note": "Norway's oldest links (1976–2014); Skagerrak 1–2 are due for decommissioning around 2026.", "x": 91.8, "y": 683.6}, {"id": "norned_feda", "name": "NorNed", "to": "Netherlands", "cap": "700 MW", "note": "Commissioned 2008 — the world's longest submarine power cable at the time.", "x": 71.9, "y": 673.4}, {"id": "nordlink_tonstad", "name": "NordLink", "to": "Germany", "cap": "1,400 MW", "note": "Opened 2021; German-side grid bottlenecks limit full use until 2026.", "x": 67.1, "y": 656.2}, {"id": "nsl_kvilldal", "name": "North Sea Link (NSL)", "to": "United Kingdom", "cap": "1,400 MW", "note": "Opened 2022; new trading arrangement agreed for the phase beginning September 2026.", "x": 62.8, "y": 615.1}, {"id": "sweden_border", "name": "Norway–Sweden AC ties", "to": "Sweden", "cap": "~3,600–4,600 MW (multiple lines)", "note": "Long-standing Nordic synchronous-grid connections across several border crossings.", "x": 180.0, "y": 603.9}, {"id": "finland_skogfoss", "name": "Skogfoss–Kaamanen", "to": "Finland", "cap": "~100 MW", "note": "Norway's smallest cross-border link, in Sør-Varanger.", "x": 567.8, "y": 104.0}], "cities": [{"id": "oslo", "name": "Oslo", "x": 154.9, "y": 593.3}, {"id": "bergen", "name": "Bergen", "x": 36.6, "y": 568.9}, {"id": "trondheim", "name": "Trondheim", "x": 147.3, "y": 414.6}, {"id": "tromso", "name": "Tromsø", "x": 333.8, "y": 98.9}]};
+
+const STATUS_META = {
+  operational: { label: "Operational", color: "var(--status-operational)" },
+  development: { label: "Under development", color: "var(--status-development)" },
+  planning:    { label: "Start / planning phase", color: "var(--status-planning)" },
+};
+
+const STATS = [
+  { label: "Normal annual production", value: "≈157 TWh", sub: "2024 actual: 157.2 TWh" },
+  { label: "Hydropower share", value: "≈88%", sub: "of total generation" },
+  { label: "Exported (2023)", value: "31 TWh", sub: "to neighbouring markets" },
+  { label: "Imported (2023)", value: "13.2 TWh", sub: "covering dry-year shortfalls" },
+  { label: "Net export (2023)", value: "+17.8 TWh", sub: "export minus import" },
+  { label: "Interconnector capacity", value: "≈9,000 MW", sub: "≈8,950 export / 9,245 import" },
+];
+
+const tooltip = document.getElementById('tooltip');
+function showTip(html, evt) {
+  tooltip.innerHTML = html;
+  tooltip.classList.add('show');
+  moveTip(evt);
+}
+function moveTip(evt) {
+  const pad = 14;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  const rect = tooltip.getBoundingClientRect();
+  if (x + rect.width > window.innerWidth) x = evt.clientX - rect.width - pad;
+  if (y + rect.height > window.innerHeight) y = evt.clientY - rect.height - pad;
+  tooltip.style.transform = `translate(${x}px, ${y}px)`;
+}
+function hideTip() { tooltip.classList.remove('show'); }
+
+// stat tiles
+const statRow = document.getElementById('statRow');
+STATS.forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'stat-tile';
+  el.innerHTML = `<div class="label">${s.label}</div><div class="value">${s.value}</div><div class="sub">${s.sub}</div>`;
+  statRow.appendChild(el);
+});
+
+// city reference dots
+const cityLayer = document.getElementById('cityLayer');
+DATA.cities.forEach(c => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.innerHTML = `<circle class="city-dot" cx="${c.x}" cy="${c.y}" r="2.4"></circle>
+                 <text class="city-label" x="${c.x+6}" y="${c.y+4}">${c.name}</text>`;
+  cityLayer.appendChild(g);
+});
+
+// energy markers
+const energyLayer = document.getElementById('energyLayer');
+DATA.energy.forEach(s => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','site-marker-group');
+  g.setAttribute('data-layer','energy');
+  g.innerHTML = `<rect class="marker energy" x="${s.x-5}" y="${s.y-5}" width="10" height="10" transform="rotate(45 ${s.x} ${s.y})"></rect>`;
+  g.addEventListener('mousemove', e => moveTip(e));
+  g.addEventListener('mouseenter', e => showTip(
+    `<b>${s.name}</b>→ ${s.to} · ${s.cap}<br>${s.note}`, e));
+  g.addEventListener('mouseleave', hideTip);
+  energyLayer.appendChild(g);
+});
+
+// ai markers
+const aiLayer = document.getElementById('aiLayer');
+DATA.ai.forEach(s => {
+  const meta = STATUS_META[s.status];
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','site-marker-group');
+  g.setAttribute('data-layer','ai');
+  g.setAttribute('data-status', s.status);
+  g.innerHTML = `<circle class="marker" cx="${s.x}" cy="${s.y}" r="6.5" style="fill:${meta.color}"></circle>`;
+  g.addEventListener('mousemove', e => moveTip(e));
+  g.addEventListener('mouseenter', e => showTip(
+    `<b>${s.name}</b>${s.org} · ${s.loc}<br>${meta.label}<br>${s.detail}`, e));
+  g.addEventListener('mouseleave', hideTip);
+  aiLayer.appendChild(g);
+});
+
+// filters
+const state = { layer: 'all', statuses: new Set(['operational','development','planning']) };
+
+function renderFilters() {
+  const row = document.getElementById('filterRow');
+  row.innerHTML = '';
+  const layerChips = [
+    { key: 'all', label: 'All' },
+    { key: 'energy', label: 'Interconnectors', color: 'var(--interconnector)' },
+    { key: 'ai', label: 'AI / data centres', color: 'var(--status-development)' },
+  ];
+  layerChips.forEach(c => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.active = String(state.layer === c.key);
+    chip.innerHTML = (c.color ? `<span class="dot" style="background:${c.color}"></span>` : '') + c.label;
+    chip.onclick = () => { state.layer = c.key; render(); };
+    row.appendChild(chip);
+  });
+  const sep = document.createElement('div');
+  sep.className = 'filter-sep';
+  row.appendChild(sep);
+  Object.entries(STATUS_META).forEach(([key, meta]) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.active = String(state.statuses.has(key));
+    chip.innerHTML = `<span class="dot" style="background:${meta.color}"></span>${meta.label}`;
+    chip.onclick = () => {
+      if (state.statuses.has(key)) state.statuses.delete(key); else state.statuses.add(key);
+      render();
+    };
+    row.appendChild(chip);
+  });
+}
+
+function render() {
+  renderFilters();
+  document.querySelectorAll('[data-layer="energy"]').forEach(g => {
+    g.classList.toggle('hidden-layer', !(state.layer === 'all' || state.layer === 'energy'));
+  });
+  document.querySelectorAll('[data-layer="ai"]').forEach(g => {
+    const show = (state.layer === 'all' || state.layer === 'ai') && state.statuses.has(g.dataset.status);
+    g.classList.toggle('hidden-layer', !show);
+  });
+  renderAiList();
+}
+
+function renderAiList() {
+  const list = document.getElementById('aiList');
+  list.innerHTML = '';
+  const visible = DATA.ai.filter(s => state.statuses.has(s.status) && (state.layer === 'all' || state.layer === 'ai'));
+  document.getElementById('aiCount').textContent = `— ${visible.length} of ${DATA.ai.length} shown`;
+  DATA.ai.forEach(s => {
+    const meta = STATUS_META[s.status];
+    const dim = !(state.statuses.has(s.status) && (state.layer === 'all' || state.layer === 'ai'));
+    const card = document.createElement('div');
+    card.className = 'site-card';
+    card.dataset.dim = String(dim);
+    card.innerHTML = `
+      <div class="row1"><span class="dot" style="background:${meta.color}"></span>${s.name}</div>
+      <div class="loc">${s.org} · ${s.loc} · ${meta.label}</div>
+      <div class="detail">${s.detail}</div>`;
+    list.appendChild(card);
+  });
+}
+
+// energy table
+const tbody = document.getElementById('energyTableBody');
+DATA.energy.forEach(s => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${s.name}</td><td>${s.to}</td><td class="cap">${s.cap}</td><td>${s.note}</td>`;
+  tbody.appendChild(tr);
+});
+
+// bar chart: export vs import 2023
+const bars = [
+  { name: 'Export', value: 31, max: 31, color: 'var(--series-export)' },
+  { name: 'Import', value: 13.2, max: 31, color: 'var(--series-import)' },
+];
+const barChart = document.getElementById('barChart');
+bars.forEach(b => {
+  const col = document.createElement('div');
+  col.className = 'bar-col';
+  const heightPct = (b.value / 31) * 100;
+  col.innerHTML = `
+    <div class="bar-track">
+      <div class="bar" style="height:${heightPct}%; background:${b.color};">
+        <div class="bar-value">${b.value} TWh</div>
+      </div>
+    </div>
+    <div class="bar-name">${b.name}</div>`;
+  const barEl = col.querySelector('.bar');
+  barEl.addEventListener('mousemove', e => moveTip(e));
+  barEl.addEventListener('mouseenter', e => showTip(`<b>${b.name} — 2023</b>${b.value} TWh`, e));
+  barEl.addEventListener('mouseleave', hideTip);
+  barChart.appendChild(col);
+});
+
+render();
+</script>
+</body>
+</html>
