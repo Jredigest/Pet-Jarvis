@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jarvis Music</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">J</span>
+    <span class="brand-name">Jarvis Music</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn is-active" data-tab="summary" role="tab" aria-selected="true">Summary</button>
+    <button class="tab-btn" data-tab="explore" role="tab" aria-selected="false">Explore</button>
+    <button class="tab-btn" data-tab="dj" role="tab" aria-selected="false">DJ</button>
+    <button class="tab-btn" data-tab="fm" role="tab" aria-selected="false">FM</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ============ SUMMARY ============ -->
+  <section id="tab-summary" class="tab-panel is-active">
+    <div class="panel-head">
+      <h1>Your taste, right now</h1>
+      <p class="muted" id="summary-subline">Pulled live from your Spotify listening.</p>
+    </div>
+
+    <div class="stat-row" id="stat-row"></div>
+
+    <div class="summary-grid">
+      <div class="card-block">
+        <h2>Top Tracks</h2>
+        <ol class="track-list" id="top-tracks-list"></ol>
+      </div>
+
+      <div class="card-block">
+        <h2>Top Artists</h2>
+        <div class="artist-grid" id="top-artists-grid"></div>
+      </div>
+
+      <div class="card-block span-2">
+        <h2>Current Genres</h2>
+        <div class="genre-cloud" id="genre-cloud"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EXPLORE ============ -->
+  <section id="tab-explore" class="tab-panel">
+    <div class="panel-head">
+      <h1>Explore</h1>
+      <p class="muted">A fresh way to find new music, seeded from what you already love.</p>
+    </div>
+
+    <div class="explore-layout">
+      <div class="deck-column">
+        <div class="deck" id="explore-deck"></div>
+        <div class="deck-actions">
+          <button class="btn btn-ghost" id="explore-skip">✕ Skip</button>
+          <button class="btn btn-primary" id="explore-preview">▶ Preview</button>
+          <button class="btn btn-like" id="explore-like">♥ Like</button>
+        </div>
+        <p class="muted small" id="explore-progress"></p>
+      </div>
+
+      <aside class="side-column">
+        <div class="card-block">
+          <h2>Blend your genres</h2>
+          <p class="muted small">Mix two genres from your profile into a one-off discovery set.</p>
+          <button class="btn btn-primary full" id="blend-btn">🔀 Blend</button>
+          <div id="blend-result" class="blend-result"></div>
+        </div>
+
+        <div class="card-block">
+          <h2>Liked this session <span class="count-badge" id="liked-count">0</span></h2>
+          <ul class="mini-list" id="liked-list"></ul>
+          <button class="btn btn-ghost full small-btn" id="clear-liked">Clear</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ DJ ============ -->
+  <section id="tab-dj" class="tab-panel">
+    <div class="panel-head">
+      <h1>DJ</h1>
+      <p class="muted">An auto-mixed session that blends your top tracks with fresh picks — crossfaded back to back.</p>
+    </div>
+
+    <div class="dj-layout">
+      <div class="dj-now">
+        <div class="dj-cover-wrap">
+          <img id="dj-cover" src="" alt="" />
+          <div class="visualizer" id="dj-visualizer">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="dj-meta">
+          <p class="eyebrow" id="dj-source-tag">NOW MIXING</p>
+          <h2 id="dj-title">—</h2>
+          <p class="muted" id="dj-artist">—</p>
+          <div class="genre-chips" id="dj-genres"></div>
+
+          <div class="progress-bar">
+            <div class="progress-fill" id="dj-progress"></div>
+          </div>
+
+          <div class="dj-controls">
+            <button class="btn btn-ghost" id="dj-shuffle">🔀 Shuffle vibe</button>
+            <button class="btn btn-primary" id="dj-playpause">▶ Play</button>
+            <button class="btn btn-ghost" id="dj-next">Next ⏭</button>
+          </div>
+          <div class="volume-row">
+            <label for="dj-volume">Volume</label>
+            <input type="range" id="dj-volume" min="0" max="1" step="0.01" value="0.85" />
+          </div>
+        </div>
+      </div>
+
+      <div class="dj-queue">
+        <h2>Up next</h2>
+        <ol class="queue-list" id="dj-queue-list"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FM ============ -->
+  <section id="tab-fm" class="tab-panel">
+    <div class="panel-head">
+      <h1>FM</h1>
+      <p class="muted">Tune in to a station built from your genres. Loops continuously, radio style.</p>
+    </div>
+
+    <div class="fm-layout">
+      <div class="station-list" id="station-list"></div>
+
+      <div class="fm-onair">
+        <div class="onair-badge" id="fm-live-badge">◉ NOT TUNED IN</div>
+        <img id="fm-cover" src="" alt="" />
+        <p class="eyebrow" id="fm-station-name">Pick a station</p>
+        <h2 id="fm-title">—</h2>
+        <p class="muted" id="fm-artist">—</p>
+
+        <div class="progress-bar">
+          <div class="progress-fill" id="fm-progress"></div>
+        </div>
+
+        <div class="dj-controls">
+          <button class="btn btn-ghost" id="fm-playpause" disabled>▶ Play</button>
+          <button class="btn btn-ghost" id="fm-scan" disabled>Scan ⏭</button>
+          <a class="btn btn-primary" id="fm-open-spotify" href="#" target="_blank" rel="noopener">Full station on Spotify</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p class="muted small">Snapshot pulled <span id="footer-date"></span> · Track previews via Spotify (30s clips) · Data reflects your real top tracks, top artists and taste-based recommendations.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
